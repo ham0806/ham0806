@@ -17,7 +17,12 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Fetch blog source
-        run: git clone --depth 1 https://github.com/ham0806/blog.git .blog-source
+        uses: actions/checkout@v4
+        with:
+          repository: ham0806/blog
+          ssh-key: ${{ secrets.BLOG_REPO_DEPLOY_KEY }}
+          path: .blog-source
+          persist-credentials: false
 
       - name: Update README
         shell: bash
