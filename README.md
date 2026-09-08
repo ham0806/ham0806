@@ -4,12 +4,8 @@
 
 ## 🚀 Featured Projects
 
-### AI Usage Bar
-Windows 11のタスクバーにCursor / Codexの使用率を表示するツール。
-
-`C#` `WPF` `.NET 8`
-
-→ [GitHub](https://github.com/ham0806/ai-usage-bar)
+- ### [AI Usage Bar](https://github.com/ham0806/ai-usage-bar)
+   - Windows 11のタスクバーにCursor / Codexの使用率を表示するツール。
 
 ## 📝 Latest Blog Posts
 
