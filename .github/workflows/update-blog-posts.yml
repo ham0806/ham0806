@@ -1,0 +1,100 @@
+name: Update latest blog posts
+
+on:
+  schedule:
+    - cron: "15 0 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout profile repository
+        uses: actions/checkout@v4
+
+      - name: Fetch blog source
+        run: git clone --depth 1 https://github.com/ham0806/blog.git .blog-source
+
+      - name: Update README
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+
+          const root = '.blog-source/src/content/blog';
+
+          function walk(dir) {
+            return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+              const full = path.join(dir, entry.name);
+              return entry.isDirectory() ? walk(full) : [full];
+            });
+          }
+
+          const stripQuotes = (value) => value.trim().replace(/^["']|["']$/g, '');
+          const escapeMarkdown = (value) => value.replace(/([\\[\]])/g, '\\$1');
+
+          const posts = walk(root)
+            .filter((file) => file.endsWith('.md'))
+            .map((file) => {
+              const text = fs.readFileSync(file, 'utf8');
+              const frontmatter = text.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+              if (!frontmatter) return null;
+
+              const title = frontmatter[1].match(/^title:\s*(.+)$/m);
+              const pubDate = frontmatter[1].match(/^pubDate:\s*(.+)$/m);
+              if (!title || !pubDate) return null;
+
+              const id = path
+                .relative(root, file)
+                .replace(/\\/g, '/')
+                .replace(/\.md$/, '');
+
+              return {
+                id,
+                title: stripQuotes(title[1]),
+                pubDate: stripQuotes(pubDate[1]),
+              };
+            })
+            .filter(Boolean)
+            .sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate))
+            .slice(0, 5);
+
+          const list = posts
+            .map((post) => {
+              const url = `https://morimori.cloud/blog/posts/${encodeURI(post.id)}/`;
+              return `- \`${post.pubDate}\` [${escapeMarkdown(post.title)}](${url})`;
+            })
+            .join('\n');
+
+          const start = '<!-- BLOG-POST-LIST:START -->';
+          const end = '<!-- BLOG-POST-LIST:END -->';
+          const readmePath = 'README.md';
+          let readme = fs.readFileSync(readmePath, 'utf8');
+          const pattern = new RegExp(`${start}[\\s\\S]*?${end}`);
+
+          if (!pattern.test(readme)) {
+            throw new Error('Blog post markers were not found in README.md');
+          }
+
+          readme = readme.replace(pattern, `${start}\n${list}\n${end}`);
+          fs.writeFileSync(readmePath, readme);
+          NODE
+
+      - name: Commit changes
+        shell: bash
+        run: |
+          if git diff --quiet README.md; then
+            echo "No blog updates"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git commit -m "docs: update latest blog posts"
+          git push
