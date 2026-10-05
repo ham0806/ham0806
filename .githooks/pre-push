@@ -1,0 +1,4 @@
+#!/bin/sh
+# push 前にローカルチェックを実行する任意フック。
+# 有効化: git config core.hooksPath .githooks
+exec make check
